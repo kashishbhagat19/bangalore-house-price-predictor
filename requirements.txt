@@ -8,4 +8,7 @@ plotly
 matplotlib
 seaborn
 geopy
+gspread
+oauth2client
+
 

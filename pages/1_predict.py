@@ -174,9 +174,33 @@ if st.session_state["predicted_price"]:
             lambda x: [255, 0, 0, 200] if x == "Property" else [0, 128, 255, 160]
         )
 
-        # Render map
+        # # Render map
+        # st.pydeck_chart(pdk.Deck(
+        #     map_style=None,  # OpenStreetMap
+        #     initial_view_state=pdk.ViewState(
+        #         latitude=lat,
+        #         longitude=lon,
+        #         zoom=14
+        #     ),
+        #     layers=[
+        #         pdk.Layer(
+        #             "ScatterplotLayer",
+        #             data=map_df,
+        #             get_position=["lon", "lat"],   # ✅ Use list of column names
+        #             get_fill_color="color",        # ✅ Use precomputed color column
+        #             get_radius=100,
+        #             pickable=True,
+        #         )
+        #     ],
+        #     tooltip={"html": "<b>{name}</b><br>Type: {type}", "style": {"color": "white"}}
+        # ))
+
+        # Render map with CARTO tiles (no API key required)
         st.pydeck_chart(pdk.Deck(
-            map_style=None,  # OpenStreetMap
+            map_style="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",  # Dark theme
+    # You can also try "light_all" for light mode:
+    # map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+    
             initial_view_state=pdk.ViewState(
                 latitude=lat,
                 longitude=lon,
@@ -186,8 +210,8 @@ if st.session_state["predicted_price"]:
                 pdk.Layer(
                     "ScatterplotLayer",
                     data=map_df,
-                    get_position=["lon", "lat"],   # ✅ Use list of column names
-                    get_fill_color="color",        # ✅ Use precomputed color column
+                    get_position=["lon", "lat"],   
+                    get_fill_color="color",        
                     get_radius=100,
                     pickable=True,
                 )
