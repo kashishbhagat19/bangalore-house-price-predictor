@@ -5,6 +5,8 @@ import pickle as pk
 import streamlit as st
 import hashlib
 import json
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 def show_navigation():
     st.sidebar.markdown("## 🔍 Navigation")
@@ -103,49 +105,117 @@ def login_form():
                 save_users(users)
                 st.success("User registered successfully! You can now login.")
 
-# if not st.session_state["logged_in"]:
-#     st.markdown(
-#         """
-#         <style>
-#         .login-box {
-#             max-width: 350px;
-#             margin: auto;
-#             padding: 2rem;
-#             border: 1px solid #ddd;
-#             border-radius: 12px;
-#             background-color: #f9f9f9;
-#             box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
-#         }
-#         </style>
-#         """,
-#         unsafe_allow_html=True
-#     )
 
-#     with st.container():
-#         st.markdown('<div class="login-box">', unsafe_allow_html=True)
-#         st.title("🔑 Login")
+@st.cache_resource
+def connect_gsheet():
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive"
+    ]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(
+        st.secrets["gcp_service_account"], scope
+    )
+    client = gspread.authorize(creds)
+    sheet = client.open_by_key("1is5qnnFOvdK00M7niiLtawjhXM_fMiS4GCwQtxUyNs8").sheet1
 
-#         choice = st.radio("Select", ["Login", "Register"], horizontal=True)
+    expected_headers = [
+        "User", "Location", "Sqft", "Bedrooms", "Bathrooms", "Balconies", "Predicted Price"
+    ]
+    existing = sheet.row_values(1)
+    if existing != expected_headers:
+        sheet.clear()
+        sheet.append_row(expected_headers)
 
-#         username = st.text_input("Username")
-#         password = st.text_input("Password", type="password")
+    return sheet
 
-#         if choice == "Login":
-#             if st.button("Login"):
-#                 if authenticate(username, password):
-#                     st.session_state["logged_in"] = True
-#                     st.session_state["username"] = username
-#                     st.switch_page("app.py")  # redirect to home
-#                 else:
-#                     st.error("❌ Invalid username or password")
-#         else:
-#             if st.button("Register"):
-#                 users = load_users()
-#                 if username in users["users"]:
-#                     st.error("⚠️ Username already exists")
-#                 else:
-#                     users["users"][username] = {"password": hash_password(password)}
-#                     save_users(users)
-#                     st.success("✅ Registered successfully! Please login.")
+sheet = connect_gsheet()
 
-#         st.markdown('</div>', unsafe_allow_html=True)
+def save_prediction(user, loc, sqft, beds, bath, balc, price):
+    sheet = connect_gsheet()
+    sheet.append_row([user, loc, sqft, beds, bath, balc, price])
+
+def load_predictions(user):
+    """Load only the logged-in user's predictions"""
+    records = sheet.get_all_records()
+    df = pd.DataFrame(records)
+
+    if not df.empty and "User" in df.columns:
+        df = df[df["User"] == user]  # filter only this user
+    return df
+
+def clear_user_history(user):
+    sheet = connect_gsheet()
+    records = sheet.get_all_records()
+
+    # Keep only rows that are NOT from this user
+    filtered_records = [r for r in records if r["User"] != user]
+
+    # Clear everything
+    sheet.clear()
+
+    # Write header back
+    sheet.append_row(["User", "Location", "Sqft", "Bedrooms", "Bathrooms", "Balconies", "Predicted Price"])
+
+    # Write back only rows from other users
+    for row in filtered_records:
+        sheet.append_row([
+            row["User"], row["Location"], row["Sqft"], row["Bedrooms"],
+            row["Bathrooms"], row["Balconies"], row["Predicted Price"]
+        ])
+
+def load_history(user):
+    sheet = connect_gsheet()
+    records = sheet.get_all_records()
+    df = pd.DataFrame(records)
+
+    if df.empty:
+        return df
+
+    # Filter only this user's rows
+    return df[df["User"] == user]
+
+def connect_gsheet_tab(tab_name):
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive"
+    ]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(
+        st.secrets["gcp_service_account"], scope
+    )
+    client = gspread.authorize(creds)
+    return client.open_by_key("1Bj53zxVKeLE_jVTTITq8xokIsj8JO4klbdJbwj0z4O4").worksheet(tab_name)
+
+# ---------------- Saved Properties ----------------
+def save_property_for_user(user, loc, sqft, beds, bath, balc, price):
+    sheet = connect_gsheet_tab("SavedProperties")
+    sheet.append_row([user, loc, sqft, beds, bath, balc, price])
+
+def load_saved_properties(user):
+    sheet = connect_gsheet_tab("SavedProperties")
+    records = sheet.get_all_records()
+    df = pd.DataFrame(records)
+
+    if df.empty:
+        return []
+
+    # Only this user’s saved properties
+    df = df[df["User"] == user]
+    return df.to_dict(orient="records")
+
+def clear_saved_properties(user):
+    sheet = connect_gsheet_tab("SavedProperties")
+    records = sheet.get_all_records()
+
+    # Keep rows from other users
+    filtered_records = [r for r in records if r["User"] != user]
+
+    # Clear everything
+    sheet.clear()
+    sheet.append_row(["User", "Location", "Sqft", "Bedrooms", "Bathrooms", "Balconies", "Predicted Price"])
+
+    # Re-add data from other users
+    for row in filtered_records:
+        sheet.append_row([
+            row["User"], row["Location"], row["Sqft"], row["Bedrooms"],
+            row["Bathrooms"], row["Balconies"], row["Predicted Price"]
+        ])

@@ -70,6 +70,8 @@ import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from utils import show_navigation, login_form
+from utils import load_predictions
+from utils import load_history, clear_user_history
 
 # --------------------------
 # Hide Streamlit sidebar nav
@@ -106,55 +108,22 @@ st.set_page_config(page_title="Prediction History", layout="wide")
 st.header("🧾 Prediction History")
 
 # --------------------------
-# Google Sheets Connection
-# --------------------------
-@st.cache_resource
-def connect_gsheet():
-    scope = [
-        "https://spreadsheets.google.com/feeds",
-        "https://www.googleapis.com/auth/drive"
-    ]
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(
-        st.secrets["gcp_service_account"], scope
-    )
-    client = gspread.authorize(creds)
-    # Replace with your Google Sheet ID
-    sheet = client.open_by_key("1is5qnnFOvdK00M7niiLtawjhXM_fMiS4GCwQtxUyNs8").sheet1 
-    return sheet
-
-sheet = connect_gsheet()
-
-# --------------------------
-# Helper functions
-# --------------------------
-def load_history():
-    records = sheet.get_all_records()
-    return pd.DataFrame(records)
-
-def save_history(new_row):
-    sheet.append_row(list(new_row.values()))
-
-def clear_history():
-    sheet.clear()
-    sheet.append_row(["Location", "Sqft", "Bedrooms", "Bathrooms", "Balconies", "Predicted Price"])
-
-# --------------------------
 # Show History
 # --------------------------
-history_df = load_history()
+user = st.session_state["username"]
+history_df = load_history(user)
 
 if not history_df.empty:
     st.dataframe(history_df, use_container_width=True)
 
     # Download as CSV
     csv = history_df.to_csv(index=False).encode("utf-8")
-    st.download_button("📥 Download History", csv, "prediction_history.csv", "text/csv")
+    st.download_button("📥 Download My History", csv, "prediction_history.csv", "text/csv")
 
-    # Clear history
-    if st.button("🗑 Clear History"):
-        clear_history()
-        st.success("History cleared ✅")
+    # Clear only THIS user's history
+    if st.button("🗑 Clear My History"):
+        clear_user_history(user)
+        st.success("Your history was cleared ✅")
+        st.stop()
 else:
     st.info("No history available yet. Make predictions to see them here!")
-
-

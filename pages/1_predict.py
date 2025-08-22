@@ -5,6 +5,8 @@ from utils import model, data, calculate_emi, get_recommendations, get_lat_lon
 from utils import show_navigation
 import requests
 from utils import login_form
+from utils import save_prediction
+from utils import save_property_for_user
 
 
 hide_pages_style = """
@@ -105,6 +107,11 @@ if st.session_state["predicted_price"]:
             "Location": loc, "Sqft": sqft, "Bedrooms": beds,
             "Bathrooms": bath, "Balconies": balc, "Predicted Price": price
         })
+
+        save_property_for_user(
+            st.session_state["username"],
+            loc, sqft, beds, bath, balc, price
+        )
         st.success("Property saved ✅")
 
     # lat, lon = get_lat_lon(loc)
@@ -131,20 +138,21 @@ if st.session_state["predicted_price"]:
     #     ))
 
 
-    def get_pois(lat, lon, radius=1500, poi_types=["school", "hospital", "subway_entrance"]):
-        """Fetch nearby POIs from OpenStreetMap via Overpass API."""
-        pois = []
-        overpass_url = "http://overpass-api.de/api/interpreter"
-    
-        for poi in poi_types:
-            query = f"""
-            [out:json];
-            node
-              ["amenity"="{poi}"]
-              (around:{radius},{lat},{lon});
-            out;
-            """
-            response = requests.get(overpass_url, params={"data": query})
+def get_pois(lat, lon, radius=1500, poi_types=["school", "hospital", "subway_entrance"]):
+    """Fetch nearby POIs from OpenStreetMap via Overpass API."""
+    pois = []
+    overpass_url = "https://overpass-api.de/api/interpreter"  # ✅ use https
+
+    for poi in poi_types:
+        query = f"""
+        [out:json];
+        node
+          ["amenity"="{poi}"]
+          (around:{radius},{lat},{lon});
+        out;
+        """
+        try:
+            response = requests.get(overpass_url, params={"data": query}, timeout=15)
             data = response.json()
             for element in data.get("elements", []):
                 name = element.get("tags", {}).get("name", poi.title())
@@ -154,69 +162,49 @@ if st.session_state["predicted_price"]:
                     "name": name,
                     "type": poi
                 })
-        return pois
+        except Exception as e:
+            st.warning(f"⚠️ Could not fetch {poi}: {e}")
+    return pois
 
-    lat, lon = get_lat_lon(loc)
-    if lat and lon:
-        st.subheader("📍 Property Location & Nearby POIs")
 
-        # Property marker
-        property_df = pd.DataFrame([{"lat": lat, "lon": lon, "name": "Property", "type": "Property"}])
+lat, lon = get_lat_lon(loc)
+if lat and lon:
+    st.subheader("📍 Property Location & Nearby POIs")
 
-        # Fetch nearby POIs
-        poi_df = pd.DataFrame(get_pois(lat, lon))
+    # Property marker
+    property_df = pd.DataFrame([{"lat": lat, "lon": lon, "name": "Property", "type": "Property"}])
 
-        # Combine property and POIs
-        map_df = pd.concat([property_df, poi_df], ignore_index=True)
+    # Fetch nearby POIs
+    poi_df = pd.DataFrame(get_pois(lat, lon))
 
-        # Add color column
-        map_df["color"] = map_df["type"].apply(
-            lambda x: [255, 0, 0, 200] if x == "Property" else [0, 128, 255, 160]
-        )
+    # Combine property and POIs
+    map_df = pd.concat([property_df, poi_df], ignore_index=True)
 
-        # # Render map
-        # st.pydeck_chart(pdk.Deck(
-        #     map_style=None,  # OpenStreetMap
-        #     initial_view_state=pdk.ViewState(
-        #         latitude=lat,
-        #         longitude=lon,
-        #         zoom=14
-        #     ),
-        #     layers=[
-        #         pdk.Layer(
-        #             "ScatterplotLayer",
-        #             data=map_df,
-        #             get_position=["lon", "lat"],   # ✅ Use list of column names
-        #             get_fill_color="color",        # ✅ Use precomputed color column
-        #             get_radius=100,
-        #             pickable=True,
-        #         )
-        #     ],
-        #     tooltip={"html": "<b>{name}</b><br>Type: {type}", "style": {"color": "white"}}
-        # ))
+    # Add color column
+    map_df["color"] = map_df["type"].apply(
+        lambda x: [255, 0, 0, 200] if x == "Property" else [0, 128, 255, 160]
+    )
 
-        # Render map with CARTO tiles (no API key required)
-        st.pydeck_chart(pdk.Deck(
-            map_style="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",  # Dark theme
-    # You can also try "light_all" for light mode:
-    # map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
-    
-            initial_view_state=pdk.ViewState(
-                latitude=lat,
-                longitude=lon,
-                zoom=14
-            ),
-            layers=[
-                pdk.Layer(
-                    "ScatterplotLayer",
-                    data=map_df,
-                    get_position=["lon", "lat"],   
-                    get_fill_color="color",        
-                    get_radius=100,
-                    pickable=True,
-                )
-            ],
-            tooltip={"html": "<b>{name}</b><br>Type: {type}", "style": {"color": "white"}}
-        ))
-
-    
+    # Render map
+    st.pydeck_chart(pdk.Deck(
+        # ✅ Try CARTO dark basemap, fallback to default if blocked
+        map_style="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+        initial_view_state=pdk.ViewState(
+            latitude=lat,
+            longitude=lon,
+            zoom=14
+        ),
+        layers=[
+            pdk.Layer(
+                "ScatterplotLayer",
+                data=map_df,
+                get_position=["lon", "lat"],
+                get_fill_color="color",
+                get_radius=100,
+                pickable=True,
+            )
+        ],
+        tooltip={"html": "<b>{name}</b><br>Type: {type}", "style": {"color": "white"}}
+    ))
+else:
+    st.error("❌ Could not fetch location coordinates")
