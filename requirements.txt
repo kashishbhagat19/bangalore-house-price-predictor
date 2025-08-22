@@ -7,3 +7,5 @@ pydeck
 plotly
 matplotlib
 seaborn
+geopy
+
