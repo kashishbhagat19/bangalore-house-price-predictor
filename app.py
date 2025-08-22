@@ -4,6 +4,16 @@ import hashlib
 import json  
 from utils import login_form
 
+# ------------------- Page Config -------------------
+st.set_page_config(
+    page_title="🏠 Bangalore House Price Predictor",
+    # layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
+    st.session_state["username"] = None
 
 # Hide default Streamlit pages menu in sidebar
 hide_pages_style = """
@@ -20,6 +30,11 @@ if not st.session_state.get("logged_in", False):
     login_form()
     st.stop()
 
+# Show login if not logged in
+if not st.session_state.get("logged_in", False):
+    login_form()
+    st.stop()
+
 # ----------------- Sidebar -----------------
 st.sidebar.success(f"Logged in as: {st.session_state['username']}")
 if st.sidebar.button("Logout"):
@@ -28,7 +43,7 @@ if st.sidebar.button("Logout"):
     st.switch_page("app.py") 
 
 
-# ------------------- Page Config -------------------
+# # ------------------- Page Config -------------------
 st.set_page_config(
     page_title="🏠 Bangalore House Price Predictor",
     layout="wide",

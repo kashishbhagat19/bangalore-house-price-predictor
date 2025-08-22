@@ -17,7 +17,7 @@ def show_navigation():
 
 
 # Load model & dataset once
-with open("models/house_prediction_model.pkl", "rb") as f:
+with open("models\house_prediction_model.pkl", "rb") as f:
     model = pk.load(f)
 data = pd.read_csv("Cleaned_data.csv")
 data["price_per_sqft"] = (data["price"] * 100000) / data["total_sqft"]
