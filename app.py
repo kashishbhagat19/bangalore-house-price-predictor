@@ -4,6 +4,7 @@ import hashlib
 import json  
 from utils import login_form
 
+
 # Hide default Streamlit pages menu in sidebar
 hide_pages_style = """
     <style>
