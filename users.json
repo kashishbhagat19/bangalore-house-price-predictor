@@ -1,0 +1,24 @@
+{
+    "users": {
+        "kashish": {
+            "password": "e9fee136e8ed31d41ad3e8070b4bf7080ef42465ac22ce80f93b8ef57e825645",
+            "saved_properties": []
+        },
+        "kashish1": {
+            "password": "e9fee136e8ed31d41ad3e8070b4bf7080ef42465ac22ce80f93b8ef57e825645",
+            "saved_properties": []
+        },
+        "vrushabh": {
+            "password": "d4a60173044714e80aa6a6a9c26633b7df541f962845bb050ec83ba29784275d",
+            "saved_properties": []
+        },
+        "sankalp": {
+            "password": "3c13bcfc9482f4ed6404663e9ffca809bb85e8b44425ede5350924558d117326",
+            "saved_properties": []
+        },
+        "riya": {
+            "password": "818434111469b4bff7e1f61f0efaa9bc09394f7e07653feaa56420fcb6c438cd",
+            "saved_properties": []
+        }
+    }
+}
